@@ -3,177 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AIot</title>
+    <title>AIot | 破局者 - 智慧物流新纪元</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#3B82F6',
-                        secondary: '#10B981',
+                        primary: '#00F2FF',
+                        secondary: '#7000FF',
+                        dark: '#050505',
+                        card: 'rgba(255, 255, 255, 0.03)',
                     },
-                    fontFamily: {
-                        inter: ['Inter', 'sans-serif'],
-                    },
+                    backgroundImage: {
+                        'tech-gradient': 'linear-gradient(135deg, #00F2FF 0%, #7000FF 100%)',
+                    }
                 }
             }
         }
     </script>
     <style type="text/tailwindcss">
-        @layer utilities {
-            .content-auto {
-                content-visibility: auto;
+        @layer base {
+            body {
+                @apply bg-dark text-gray-200 antialiased overflow-x-hidden;
+                font-family: 'Inter', sans-serif;
             }
-            .nav-link {
-                @apply relative px-4 py-2 text-gray-700 hover:text-primary transition-colors duration-300;
-            }
-            .nav-link::after {
-                @apply content-[''] absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
-            }
-            .nav-link:hover::after {
-                @apply w-full;
-            }
+            h1, h2 { font-family: 'Space Grotesk', sans-serif; }
         }
+
+        /* --- 核心动画逻辑修复 --- */
+        .shutter { 
+            @apply fixed left-0 w-full h-1/2 bg-black z-[100]; 
+            /* 初始状态：快门闭合 */
+            transition: transform 1.2s cubic-bezier(0.87, 0, 0.13, 1);
+        }
+        #shutter-top { @apply top-0 border-b border-primary/20; }
+        #shutter-bottom { @apply bottom-0 border-t border-primary/20; }
+        
+        /* 激活状态：快门划开 */
+        .loaded #shutter-top { transform: translateY(-100%); }
+        .loaded #shutter-bottom { transform: translateY(100%); }
+        
+        /* 跳过动画时的瞬间状态 */
+        .no-animation .shutter { transition: none !important; transform: translateY(-100%) !important; }
+        .no-animation #shutter-bottom { transform: translateY(100%) !important; }
+        .no-animation #loader-content { display: none !important; }
+
+        /* --- UI 细节优化 --- */
+        .grid-bg {
+            background-image: linear-gradient(rgba(0, 242, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 242, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(ellipse at center, black, transparent 80%);
+        }
+        .scanner {
+            @apply absolute w-full h-32 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none;
+            animation: scan 5s linear infinite;
+        }
+        @keyframes scan { 0% { top: -10%; } 100% { top: 110%; } }
+
+        .glass-panel { @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl; }
+        .reveal-on-scroll { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+        .reveal-on-scroll.active { opacity: 1; transform: translateY(0); }
+
+        /* 加载文本层 */
+        #loader-content { @apply fixed inset-0 z-[110] flex flex-col items-center justify-center; }
+        .loaded #loader-content { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
     </style>
 </head>
-<body class="font-inter bg-gray-50 min-h-screen flex flex-col">
-    <!-- 导航栏 -->
-    <header class="bg-white shadow-md sticky top-0 z-50 transition-all duration-300" id="navbar">
-        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="flex items-center space-x-8">
-                <a href="#" class="text-xl font-bold text-primary flex items-center">
-                    <img src="AIot的logo.png" alt="错误" width="30" height="30">
-                    <span>破局者</span>
+<body class="min-h-screen flex flex-col">
+
+    <!-- 系统加载层 -->
+    <div id="loader-content">
+        <div class="relative w-24 h-24 mb-6">
+            <div class="absolute inset-0 border-2 border-primary/10 rounded-full"></div>
+            <div class="absolute inset-0 border-t-2 border-primary rounded-full animate-spin"></div>
+            <img src="AIot的logo.png" class="absolute inset-5 w-14 h-14" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2103/2103633.png'">
+        </div>
+        <div class="font-mono text-xs tracking-[0.5em] text-primary animate-pulse uppercase">System Booting...</div>
+        <div id="load-val" class="mt-2 font-mono text-[10px] text-primary/40">0%</div>
+    </div>
+    <div id="shutter-top" class="shutter"></div>
+    <div id="shutter-bottom" class="shutter"></div>
+
+    <!-- 背景 -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="grid-bg h-full w-full"></div>
+        <div class="scanner"></div>
+        <div id="orb-1" class="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] transition-transform duration-1000"></div>
+        <div id="orb-2" class="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-[120px] transition-transform duration-1000"></div>
+    </div>
+
+    <!-- 导航栏 - 修复高度过扁问题 -->
+    <header class="sticky top-0 z-50 transition-all duration-500 border-b border-white/5 bg-dark/60 backdrop-blur-lg" id="navbar">
+        <div class="container mx-auto px-6 py-6 flex justify-between items-center min-h-[80px]" id="nav-container">
+            <div class="flex items-center space-x-12">
+                <a href="index.html" class="flex items-center space-x-3 group">
+                    <div class="p-2.5 bg-tech-gradient rounded-lg shadow-[0_0_20px_rgba(0,242,255,0.4)] group-hover:rotate-180 transition-transform duration-700">
+                        <img src="AIot的logo.png" alt="Logo" class="w-7 h-7 brightness-0 invert" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2103/2103633.png'">
+                    </div>
+                    <span class="text-2xl font-bold tracking-tighter text-white group-hover:text-primary transition-colors">破局者 <span class="text-[10px] font-light tracking-[0.4em] text-gray-500 ml-2 uppercase">AIOT CORE</span></span>
                 </a>
-                <nav class="hidden md:flex space-x-2">
-                    <a href="#" class="nav-link active">首页</a>
-                    <a href="技术展示.html" class="nav-link">技术展示</a>
+                <nav class="hidden md:flex space-x-4">
+                    <a href="index.html" class="px-4 py-2 text-sm font-medium text-primary tracking-widest uppercase border-b border-primary">首页</a>
+                    <a href="技术展示.html" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-all tracking-widest uppercase">技术展示</a>
+                    <a href="图书馆机器人.html" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-all tracking-widest uppercase">图书馆机器人</a>
                 </nav>
             </div>
-            <div class="flex items-center space-x-4">
-                                <button class="md:hidden text-gray-700 focus:outline-none" id="menuToggle">
-                    <i class="fa fa-bars text-xl"></i>
-                </button>
-            </div>
+            <button class="md:hidden text-white p-2" id="menuToggle"><i class="fa fa-th-large text-xl text-primary"></i></button>
         </div>
         <!-- 移动端菜单 -->
-        <div class="md:hidden hidden bg-white border-t" id="mobileMenu">
-            <div class="container mx-auto px-4 py-3 flex flex-col space-y-3">
-                <a href="#" class="py-2 px-4 hover:bg-gray-100 rounded-lg transition-colors">首页</a>
-                <a href="技术展示.html" class="py-2 px-4 hover:bg-gray-100 rounded-lg transition-colors">技术展示</a>
-              
+        <div class="md:hidden hidden glass-panel border-x-0 border-t" id="mobileMenu">
+            <div class="px-6 py-8 flex flex-col space-y-6">
+                <a href="index.html" class="text-primary font-bold tracking-widest uppercase text-center">首页</a>
+                <a href="技术展示.html" class="text-gray-400 font-bold tracking-widest uppercase text-center">技术展示</a>
+                <a href="图书馆机器人.html" class="text-gray-400 font-bold tracking-widest uppercase text-center">图书馆机器人</a>
             </div>
         </div>
     </header>
 
-    <!-- 主要内容区域 -->
-    <main class="flex-grow container mx-auto px-4 py-8">
-        <section class="text-center py-12">
-            <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold text-gray-800 mb-6">欢迎访问我们的网站</h1>
-            <p class="text-gray-600 text-lg max-w-2xl mx-auto mb-10">破局者 —— 新型物流模式 引领物流新时代</p>
-            <div class="flex flex-col sm:flex-row justify-center gap-4">
-
-                <a href="探索更多.html" class="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                    <i class="fa fa-rocket mr-2"></i>探索更多
+    <main class="relative z-10 flex-grow container mx-auto px-6">
+        <!-- Hero Section -->
+        <section class="min-h-[85vh] flex flex-col justify-center items-center text-center">
+            <div class="reveal-on-scroll inline-block px-5 py-1.5 border border-primary/30 rounded-full bg-primary/5 text-primary text-[10px] tracking-[0.4em] mb-10 uppercase font-bold">
+                Knowledge & Logistics Neural Network
+            </div>
+            <h1 class="reveal-on-scroll delay-100 text-[clamp(2.5rem,9vw,6rem)] font-bold leading-none mb-10 tracking-tighter">
+                引领物流模式 <br>
+                <span class="bg-clip-text text-transparent bg-tech-gradient italic font-light">重塑产业生态</span>
+            </h1>
+            <p class="reveal-on-scroll delay-200 text-gray-400 text-lg md:text-xl max-w-3xl mx-auto mb-14 leading-relaxed font-light">
+                集成人工智能与物联网技术的深层破局方案，<br class="hidden md:block">
+                为现代供应链打造高感知的自动化数字神经系统。
+            </p>
+            <div class="reveal-on-scroll delay-300">
+                <a href="探索更多.html" class="relative group inline-block overflow-hidden px-12 py-4 bg-tech-gradient text-dark font-black rounded-full transition-all hover:scale-110 active:scale-95 shadow-[0_0_40px_rgba(0,242,255,0.4)]">
+                    <span class="relative z-10 flex items-center tracking-[0.2em]">立即开启 <i class="fa fa-chevron-right ml-4 text-sm animate-bounce-x"></i></span>
                 </a>
-               
             </div>
         </section>
 
-        <section class="py-12 bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">关于我们</h2>
-            <p class="text-gray-600 mb-4">我们是一个致力于提供高质量产品和服务的团队。我们的使命是通过创新技术解决实际问题，为客户创造价值。</p>
-            <p class="text-gray-600">无论您是个人还是企业，我们都能为您提供定制化的解决方案。</p>
+        <!-- 关于我们 -->
+        <section class="py-32 grid md:grid-cols-2 gap-20 items-center">
+            <div class="reveal-on-scroll glass-panel p-14 rounded-[3rem] border-l-4 border-l-primary group hover:bg-white/[0.06]">
+                <h2 class="text-4xl font-bold text-white mb-8 flex items-center uppercase italic">
+                    <span class="w-16 h-[2px] bg-primary mr-6 shadow-[0_0_15px_#00F2FF]"></span>关于我们
+                </h2>
+                <div class="space-y-6 text-gray-400 leading-relaxed text-xl font-light">
+                    <p>我们并非仅仅是在做物流，而是在构建一个<span class="text-white font-medium">自适应的智能实体网格</span>。</p>
+                    <p>通过部署最前沿的 AIOT 架构，我们实现了从仓储到末端配送的全流程毫秒级响应。我们的使命是消除效率浪费，让流动创造更多价值。</p>
+                </div>
+            </div>
+            <div class="reveal-on-scroll delay-200 relative group overflow-hidden rounded-[3rem]">
+                <div class="absolute -inset-1 bg-tech-gradient rounded-[3rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                <div class="relative glass-panel rounded-[3rem] overflow-hidden aspect-video flex items-center justify-center bg-dark/60">
+                    <div class="absolute inset-0 grid-bg opacity-30"></div>
+                    <div class="text-center group-hover:scale-110 transition-transform duration-1000">
+                        <i class="fa fa-microchip text-8xl text-primary/20 mb-8 animate-pulse"></i>
+                        <p class="text-xs tracking-[0.6em] text-gray-600 uppercase font-black">Core System Online</p>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
     <!-- 页脚 -->
-    <footer class="bg-gray-800 text-white py-8">
-        <div class="container mx-auto px-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div>
-                    <h3 class="text-xl font-bold mb-4 flex items-center">
-                        <i class="fa fa-cube mr-2"></i>破局者
-                    </h3>
-                    <p class="text-gray-400 mb-4">我们致力于提供高质量的产品和服务，满足您的需求。</p>
-                    
+    <footer class="relative z-10 border-t border-white/5 bg-dark/95 py-24">
+        <div class="container mx-auto px-6 text-center">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-16 mb-20 text-left">
+                <div class="md:col-span-2">
+                    <h3 class="text-3xl font-black mb-8 text-white tracking-tighter uppercase italic">Breakthrough <span class="text-primary font-light">Systems</span></h3>
+                    <p class="text-gray-500 max-w-lg mb-10 leading-relaxed text-lg">
+                        AIoT 技术驱动的未来智慧校园与智慧物流先行者。由上海市西南工程学校重点扶持的创新科技项目。
+                    </p>
                 </div>
-                
-                <div>
-                    <h3 class="text-lg font-semibold mb-4">联系我们</h3>
-                    <ul class="space-y-2">
-                        <li class="flex items-start">
-                            <i class="fa fa-map-marker mt-1 mr-3 text-gray-400"></i>
-                            <span class="text-gray-400">上海市西南工程学校</span>
-                        </li>
-                        <li class="flex items-center">
-                            <i class="fa fa-phone mr-3 text-gray-400"></i>
-                            <span class="text-gray-400">+86 131 4918 8912</span>
-                        </li>
-                        <li class="flex items-center">
-                            <i class="fa fa-envelope mr-3 text-gray-400"></i>
-                            <span class="text-gray-400">2928354398@qq.com</span>
-                        </li>
+                <div class="space-y-6">
+                    <h4 class="text-primary font-black uppercase tracking-[0.3em] text-sm">联系中心</h4>
+                    <ul class="space-y-4 text-gray-500 font-light">
+                        <li class="flex items-center hover:text-white transition-colors cursor-pointer"><i class="fa fa-map-marker mr-4 text-primary"></i> 上海市西南工程学校</li>
+                        <li class="flex items-center hover:text-white transition-colors cursor-pointer"><i class="fa fa-envelope mr-4 text-primary"></i> 2928354398@qq.com</li>
                     </ul>
                 </div>
             </div>
-            <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
-                <p>&copy; 2025 破局者  保留所有权利 </p>
-            </div>
+            <p class="text-[10px] text-gray-700 tracking-[0.6em] uppercase font-bold border-t border-white/5 pt-12">
+                &copy; 2025 ALL RIGHTS RESERVED. DESIGNED FOR THE FUTURE.
+            </p>
         </div>
     </footer>
 
     <script>
-        // 移动端菜单切换
+        // 1. 系统单次动画逻辑修复
+        document.addEventListener('DOMContentLoaded', () => {
+            const hasSeenAnimation = sessionStorage.getItem('hasSeenBreakerAnimation');
+            const loaderVal = document.getElementById('load-val');
+            
+            // 如果已经在当前会话中看过动画，则直接跳过
+            if (hasSeenAnimation) {
+                document.body.classList.add('no-animation', 'loaded');
+            } else {
+                let val = 0;
+                const interval = setInterval(() => {
+                    val += Math.floor(Math.random() * 12) + 2;
+                    if (val >= 100) {
+                        val = 100;
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            document.body.classList.add('loaded');
+                            // 标记已看过动画
+                            sessionStorage.setItem('hasSeenBreakerAnimation', 'true');
+                        }, 400);
+                    }
+                    loaderVal.innerText = val + '%';
+                }, 70);
+            }
+        });
+
+        // 2. 导航栏修复：增大最小高度，滚动时比例更协调
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            const navContainer = document.getElementById('nav-container');
+            if (window.scrollY > 50) {
+                navContainer.classList.remove('py-6');
+                navContainer.classList.add('py-4');
+                navContainer.classList.replace('min-h-[80px]', 'min-h-[70px]');
+                navbar.classList.add('shadow-[0_10px_40px_rgba(0,0,0,0.8)]');
+            } else {
+                navContainer.classList.remove('py-4');
+                navContainer.classList.add('py-6');
+                navContainer.classList.replace('min-h-[70px]', 'min-h-[80px]');
+                navbar.classList.remove('shadow-[0_10px_40px_rgba(0,0,0,0.8)]');
+            }
+        });
+
+        // 3. 鼠标跟随背景
+        document.addEventListener('mousemove', (e) => {
+            const x = (window.innerWidth / 2 - e.clientX) / 40;
+            const y = (window.innerHeight / 2 - e.clientY) / 40;
+            document.getElementById('orb-1').style.transform = `translate(${x}px, ${y}px)`;
+            document.getElementById('orb-2').style.transform = `translate(${-x}px, ${-y}px)`;
+        });
+
+        // 4. 滚动进入视野动画
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('active');
+            });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.reveal-on-scroll').forEach(el => revealObserver.observe(el));
+
+        // 5. 移动端菜单
         const menuToggle = document.getElementById('menuToggle');
         const mobileMenu = document.getElementById('mobileMenu');
-
-        menuToggle.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-        });
-
-        // 滚动时导航栏效果
-        const navbar = document.getElementById('navbar');
-        let lastScrollTop = 0;
-
-        window.addEventListener('scroll', () => {
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-            if (scrollTop > 50) {
-                navbar.classList.add('py-2', 'shadow-lg');
-                navbar.classList.remove('py-4', 'shadow-md');
-            } else {
-                navbar.classList.add('py-4', 'shadow-md');
-                navbar.classList.remove('py-2', 'shadow-lg');
-            }
-
-            lastScrollTop = scrollTop;
-        });
-
-        // 添加平滑滚动
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-
-                const targetId = this.getAttribute('href');
-                if (targetId === '#') return;
-
-                const targetElement = document.querySelector(targetId);
-                if (targetElement) {
-                    window.scrollTo({
-                        top: targetElement.offsetTop - 80,
-                        behavior: 'smooth'
-                    });
-
-                    // 关闭移动端菜单
-                    if (!mobileMenu.classList.contains('hidden')) {
-                        mobileMenu.classList.add('hidden');
-                    }
-                }
-            });
-        });
+        menuToggle.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
     </script>
 </body>
 </html>
